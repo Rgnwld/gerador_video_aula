@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite não suporta enums nativos no Prisma; os valores válidos
+// ("ADMIN"/"STUDENT" e "GENERATING"/"READY"/"FAILED") são garantidos em código (TypeScript).
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STUDENT")
+  createdAt    DateTime @default(now())
+
+  trilhasCriadas Trilha[]       @relation("TrilhasCriadasPeloAdmin")
+  progresso      AulaProgress[]
+}
+
+model Trilha {
+  id               String       @id @default(cuid())
+  title            String
+  description      String       @default("")
+  sourceFileName   String?
+  sourceText       String?
+  sourceFilePath   String?
+  questionsPerAula Int          @default(3)
+  status           String       @default("GENERATING")
+  errorMessage     String?
+  createdById      String
+  createdBy        User         @relation("TrilhasCriadasPeloAdmin", fields: [createdById], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  aulas Aula[]
+}
+
+model Aula {
+  id          String   @id @default(cuid())
+  trilhaId    String
+  trilha      Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  order       Int
+  title       String
+  difficulty  Int      @default(1)
+  summary     String
+  videoScript String
+  videoUrl    String?
+  videoStatus String   @default("NONE") // NONE|GENERATING|READY|FAILED
+  videoError  String?
+  createdAt   DateTime @default(now())
+
+  questions Question[]
+  progresso AulaProgress[]
+
+  @@index([trilhaId])
+}
+
+model Question {
+  id                 String @id @default(cuid())
+  aulaId             String
+  aula               Aula   @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  order              Int
+  text               String
+  options            String // JSON.stringify(string[]) — SQLite não suporta o tipo Json
+  correctOptionIndex Int
+
+  @@index([aulaId])
+}
+
+model AulaProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aulaId         String
+  aula           Aula      @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  videoCompleted Boolean   @default(false)
+  quizCompleted  Boolean   @default(false)
+  quizScore      Int?
+  answers        String? // JSON.stringify(Record<questionId, selectedIndex>)
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, aulaId])
+  @@index([aulaId])
+}

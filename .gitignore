@@ -1,0 +1,14 @@
+node_modules
+.next
+.env
+.env.local
+prisma/dev.db
+prisma/dev.db-journal
+uploads/
+.acp-video-work/
+public/videos/*
+!public/videos/.gitkeep
+npm-debug.log*
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
