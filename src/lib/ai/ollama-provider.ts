@@ -1,14 +1,15 @@
 import { EMIT_TRILHA_JSON_SCHEMA, trilhaGenerationSchema, type GeneratedAula } from "./schema";
 import { buildTrilhaPrompt } from "./prompt";
 
-const BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const MODEL = process.env.OLLAMA_MODEL || "llama3.1";
-
 export async function generateTrilhaAulasWithOllama(params: {
   trilhaTitle: string;
   sourceText: string;
   questionsPerAula: number;
+  ollamaBaseUrl?: string | null;
+  ollamaModel?: string | null;
 }): Promise<GeneratedAula[]> {
+  const BASE_URL = params.ollamaBaseUrl || "http://localhost:11434";
+  const MODEL = params.ollamaModel || "llama3.1";
   const prompt = buildTrilhaPrompt(params);
 
   let response: Response;

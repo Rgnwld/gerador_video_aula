@@ -21,6 +21,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link href="/admin/alunos" className="text-slate-600 hover:text-brand-600">
                 Alunos
               </Link>
+              <Link href="/admin/configuracoes" className="text-slate-600 hover:text-brand-600">
+                Configurações
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-4">

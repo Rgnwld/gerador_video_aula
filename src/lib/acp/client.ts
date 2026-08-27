@@ -25,9 +25,10 @@ export async function runAcpPrompt(params: {
   cwd: string;
   prompt: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
   onUpdate?: (update: AcpUpdate) => void;
 }): Promise<{ text: string; stopReason: string }> {
-  const { cwd, prompt, timeoutMs = 5 * 60_000, onUpdate } = params;
+  const { cwd, prompt, timeoutMs = 5 * 60_000, signal, onUpdate } = params;
 
   const agentProcess: ChildProcessWithoutNullStreams = spawn(process.execPath, [CLAUDE_AGENT_ACP_BIN], {
     cwd,
@@ -49,6 +50,13 @@ export async function runAcpPrompt(params: {
     settled = true;
     agentProcess.kill();
   }, timeoutMs);
+
+  let cancelled = false;
+  const onAbort = () => {
+    cancelled = true;
+    agentProcess.kill();
+  };
+  signal?.addEventListener("abort", onAbort);
 
   const input = Writable.toWeb(agentProcess.stdin) as WritableStream<Uint8Array>;
   const output = Readable.toWeb(agentProcess.stdout) as ReadableStream<Uint8Array>;
@@ -99,11 +107,15 @@ export async function runAcpPrompt(params: {
 
     return { text: fullText, stopReason: result.stopReason };
   } catch (err) {
+    if (cancelled) {
+      throw new Error("Cancelado.");
+    }
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(stderrTail ? `${message}\n--- stderr ---\n${stderrTail}` : message);
   } finally {
     settled = true;
     clearTimeout(timeout);
+    signal?.removeEventListener("abort", onAbort);
     agentProcess.stdin.end();
     setTimeout(() => agentProcess.kill(), 200);
   }

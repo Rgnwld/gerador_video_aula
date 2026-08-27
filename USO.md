@@ -60,21 +60,25 @@ Nessa página dá para:
 
 ### 4. Gerar vídeo de uma aula
 
-Dentro de cada aula expandida existe a seção **Vídeo (via ACP +
-HyperFrames)** com um botão **Gerar vídeo**. Ao clicar:
+Dentro de cada aula expandida existe a seção **Vídeo (HyperFrames)** com um
+botão **Gerar vídeo**. Ao clicar:
 
 1. O status muda para **Gerando vídeo...** — a tela atualiza sozinha
    (verifica a cada ~8s) sem precisar recarregar a página.
-2. Em segundo plano, uma sessão de IA lê o roteiro da aula (e o PDF original,
-   como referência extra) e monta/renderiza um vídeo curto usando o
-   HyperFrames.
-3. **Isso é lento** — pode levar vários minutos, porque instala dependências
-   e renderiza de verdade. É por isso que não acontece automaticamente ao
-   criar a trilha: fica a critério do admin disparar quando quiser, aula por
-   aula.
+2. Em segundo plano, o servidor roda um pipeline em 3 passos: (a) monta o
+   projeto HyperFrames a partir do roteiro da aula usando o CLI diretamente
+   (sem IA); (b) faz **uma única chamada** ao provedor de IA configurado
+   em Configurações para gerar um design system simples (paleta) e um
+   storyboard curto (4 a 8 cenas de texto); (c) escreve a composição HTML
+   e renderiza o vídeo via CLI. Normalmente leva menos de dois minutos.
+3. Enquanto está gerando, aparece um botão **Cancelar geração** — encerra o
+   processo de verdade (não só esconde na tela) e libera a aula para tentar
+   de novo.
 4. Quando terminar, o status vira **Pronto** (com o vídeo já tocável ali
-   mesmo) ou **Falha ao gerar vídeo** (com a mensagem de erro e um botão
-   para tentar de novo).
+   mesmo) ou **Falha ao gerar vídeo** (com a mensagem de erro — inclusive
+   quando cancelado — e um botão para tentar de novo). É por isso que não
+   acontece automaticamente ao criar a trilha: fica a critério do admin
+   disparar quando quiser, aula por aula.
 
 O vídeo gerado também passa a aparecer para o aluno na página da aula,
 substituindo o placeholder.
@@ -85,6 +89,27 @@ Lista todos os alunos com o progresso geral (quantas aulas completaram, de
 quantas disponíveis). Clique em **Ver detalhes** para abrir o progresso
 detalhado de um aluno específico, trilha por trilha e aula por aula (vídeo
 assistido? quiz feito? qual nota?).
+
+### 6. Configurar o provedor de IA (`/admin/configuracoes`)
+
+O admin escolhe e configura, direto pela interface (sem precisar mexer em
+arquivo nenhum nem reiniciar o servidor), qual IA gera o texto das trilhas
+**e** o design system/storyboard de cada vídeo:
+
+- **ACP (Claude local)** — não pede nada, usa o login do `claude` já feito
+  na máquina do servidor.
+- **Anthropic API** — precisa preencher a API key (e opcionalmente trocar o
+  modelo).
+- **Ollama (modelo local)** — preencha a URL do servidor Ollama e clique em
+  **Buscar modelos instalados** para listar os modelos já baixados naquele
+  Ollama e escolher um numa lista, em vez de digitar o nome manualmente.
+
+Os três funcionam tanto para gerar a trilha quanto para gerar vídeo — a
+montagem e a renderização em si (scaffold + CLI do HyperFrames) rodam
+sempre no servidor, independente do provedor escolhido.
+
+Clique em **Salvar configurações** — a mudança já vale para a próxima
+trilha (ou vídeo) gerado.
 
 ---
 
@@ -125,21 +150,25 @@ reflete em tempo real quantas aulas foram concluídas.
 
 ## Provedor de IA usado na geração
 
-A trilha (texto) e o vídeo de cada aula são gerados via **ACP** (Agent
-Client Protocol) — uma sessão do Claude rodando localmente, autenticada com
-o login do `claude` já feito na máquina do servidor, sem precisar de nenhuma
-API key configurada. É possível trocar para a API da Anthropic ou para um
-modelo local via Ollama ajustando `AI_PROVIDER` no `.env` (detalhes no
-[README.md](README.md)) — mas nesse caso a geração de vídeo continua
-dependendo do ACP, já que é a única forma implementada de rodar o
-HyperFrames.
+Por padrão, a trilha (texto) e o design system/storyboard do vídeo de cada
+aula são gerados via **ACP** (Agent Client Protocol) — uma sessão do Claude
+rodando localmente, autenticada com o login do `claude` já feito na máquina
+do servidor, sem precisar de nenhuma API key configurada. O admin pode
+trocar o provedor (Anthropic API ou Ollama) em `/admin/configuracoes` —
+veja a seção 6 do fluxo do administrador acima — e a mudança vale tanto
+para a trilha quanto para o vídeo.
+
+A montagem do projeto HyperFrames e a renderização em si (o CLI
+`hyperframes`) rodam sempre diretamente no servidor via `child_process`,
+sem depender de nenhum provedor de IA — é por isso que a geração de vídeo
+funciona igual com qualquer um dos três provedores selecionados.
 
 ## Notas e limitações
 
 - A geração de texto da trilha e a geração de vídeo por aula rodam dentro do
   processo do servidor (`next dev`/`next start`) — não funcionam em
   ambientes serverless.
-- Geração de vídeo é sob demanda, por aula, porque pode levar vários
-  minutos; não acontece automaticamente ao criar/refazer a trilha.
+- Geração de vídeo é sob demanda, por aula (leva tipicamente menos de dois
+  minutos); não acontece automaticamente ao criar/refazer a trilha.
 - Não há matrícula/pagamento: qualquer aluno autenticado vê todas as
   trilhas publicadas.

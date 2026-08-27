@@ -119,12 +119,19 @@ const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
   FAILED: "Falha ao gerar vídeo",
 };
 
-function VideoSection({ aulaId, initial }: { aulaId: string; initial: Pick<Aula, "videoStatus" | "videoUrl" | "videoError"> }) {
+function VideoSection({
+  aulaId,
+  initial,
+}: {
+  aulaId: string;
+  initial: Pick<Aula, "videoStatus" | "videoUrl" | "videoError">;
+}) {
   const router = useRouter();
   const [status, setStatus] = useState<VideoStatus>(initial.videoStatus);
   const [videoUrl, setVideoUrl] = useState(initial.videoUrl);
   const [videoError, setVideoError] = useState(initial.videoError);
   const [starting, setStarting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (status !== "GENERATING") return;
@@ -158,9 +165,26 @@ function VideoSection({ aulaId, initial }: { aulaId: string; initial: Pick<Aula,
     }
   }
 
+  async function cancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/aulas/${aulaId}/generate-video`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setStatus("FAILED");
+        setVideoError("Cancelado pelo administrador.");
+        router.refresh();
+      } else {
+        setVideoError(data.error ?? "Não foi possível cancelar a geração.");
+      }
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <div>
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Vídeo (via ACP + HyperFrames)</h4>
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Vídeo (HyperFrames)</h4>
       <p className="mb-2 text-xs text-slate-500">{VIDEO_STATUS_LABEL[status]}</p>
 
       {status === "READY" && videoUrl && (
@@ -170,13 +194,24 @@ function VideoSection({ aulaId, initial }: { aulaId: string; initial: Pick<Aula,
         <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{videoError}</p>
       )}
 
-      <button
-        onClick={generate}
-        disabled={starting || status === "GENERATING"}
-        className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-      >
-        {status === "GENERATING" ? "Gerando..." : status === "READY" ? "Gerar novamente" : "Gerar vídeo"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={generate}
+          disabled={starting || status === "GENERATING"}
+          className="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+        >
+          {status === "GENERATING" ? "Gerando..." : status === "READY" ? "Gerar novamente" : "Gerar vídeo"}
+        </button>
+        {status === "GENERATING" && (
+          <button
+            onClick={cancel}
+            disabled={cancelling}
+            className="rounded-md border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-60"
+          >
+            {cancelling ? "Cancelando..." : "Cancelar geração"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

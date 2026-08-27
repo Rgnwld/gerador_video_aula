@@ -2,8 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { EMIT_TRILHA_JSON_SCHEMA, trilhaGenerationSchema, type GeneratedAula } from "./schema";
 import { buildTrilhaPrompt } from "./prompt";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
-
 const EMIT_TRILHA_TOOL: Anthropic.Tool = {
   name: "emit_trilha",
   description:
@@ -15,12 +13,14 @@ export async function generateTrilhaAulasWithAnthropic(params: {
   trilhaTitle: string;
   sourceText: string;
   questionsPerAula: number;
+  anthropicApiKey?: string | null;
+  anthropicModel?: string | null;
 }): Promise<GeneratedAula[]> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const anthropic = new Anthropic({ apiKey: params.anthropicApiKey || process.env.ANTHROPIC_API_KEY });
   const prompt = buildTrilhaPrompt(params);
 
   const response = await anthropic.messages.create({
-    model: MODEL,
+    model: params.anthropicModel || "claude-sonnet-5",
     max_tokens: 8192,
     tools: [EMIT_TRILHA_TOOL],
     tool_choice: { type: "tool", name: "emit_trilha" },

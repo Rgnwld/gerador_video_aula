@@ -72,6 +72,19 @@ model Question {
   @@index([aulaId])
 }
 
+// Linha única (id fixo "singleton") com a configuração do provedor de IA,
+// editável pelo admin em /admin/configuracoes — sobrepõe as variáveis de
+// ambiente quando presente.
+model Settings {
+  id              String   @id @default("singleton")
+  aiProvider      String   @default("acp") // acp|anthropic|ollama
+  anthropicApiKey String?
+  anthropicModel  String?
+  ollamaBaseUrl   String?
+  ollamaModel     String?
+  updatedAt       DateTime @updatedAt
+}
+
 model AulaProgress {
   id             String    @id @default(cuid())
   userId         String
